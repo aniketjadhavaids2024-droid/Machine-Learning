@@ -1,1 +1,760 @@
+Assignment 1 — Create a Git repository and push to GitHub
+Aim: Track project changes locally and publish the repository on GitHub.
+1. Configure Git identity (only if not already configured)
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+git config --list
+2. Create the project files
+Create a simple training script:
+cat > train.py <<'PY'
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import joblib
+from pathlib import Path
+iris = load_iris()
+X_train, X_test, y_train, y_test = train_test_split(
+iris.data, iris.target, test_size=0.2, random_state=42
+)
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
 
+Ubuntu DevOps & MLOps Practical Lab Manual Page 3
+pred = model.predict(X_test)
+print("Accuracy:", accuracy_score(y_test, pred))
+Path("models").mkdir(exist_ok=True)
+joblib.dump(model, "models/iris_model.joblib")
+print("Saved models/iris_model.joblib")
+PY
+cat > requirements.txt <<'EOF'
+scikit-learn
+joblib
+flask
+pytest
+EOF
+cat > .gitignore <<'EOF'
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+models/*.joblib
+EOF
+cat > README.md <<'EOF'
+# Iris ML project
+A Random Forest classifier trained on the Iris dataset.
+Run: python train.py
+Install: pip install -r requirements.txt
+EOF
+3. Create a virtual environment and run the model
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python train.py
+Expected: an accuracy value (often around 0.9–1.0 for this small dataset) and a saved model file. The model file is
+ignored by Git so generated binaries are not committed.
+4. Initialize Git and make the first commit
+git init
+git status
+git add .
+git status
+git commit -m "Initial Iris ML project"
+git branch -M main
+git log --oneline
+5. Create an empty GitHub repository
+• Open https://github.com/new in a browser and sign in.
+• Repository name: iris-ml-project. Choose Public or Private as instructed.
+• Do not initialize with a README, .gitignore, or license because these files already exist locally.
+• Create repository and copy its SSH or HTTPS URL.
+6. Connect and push
+git remote add origin git@github.com:YOUR_GITHUB_USERNAME/iris-ml-project.git
+git remote -v
+git push -u origin main
+NOTE: For SSH, add your public key at GitHub → Settings → SSH and GPG keys. Generate one with: ssh-keygen -t
+ed25519 -C 'you@example.com'; display the public key with: cat ~/.ssh/id_ed25519.pub. Alternatively use the HTTPS URL
+and GitHub authentication.
+Verify: Refresh the GitHub repository page. You should see README.md, train.py, requirements.txt, and .gitignore.
+Record evidence: screenshot of `git log --oneline`, successful `git push`, and the GitHub repository file list.
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 4
+Assignment 2 — Feature branches, merging, and conflict
+resolution
+Aim: Work in separate branches and combine changes safely.
+1. Start from the latest main branch
+git switch main
+git pull origin main
+git switch -c feature/data-preprocessing
+2. Make and commit a change in branch 1
+cat > preprocessing_notes.txt <<'EOF'
+Data preprocessing:
+- Check missing values.
+- Check feature ranges.
+- Keep train/test split reproducible.
+EOF
+git add preprocessing_notes.txt
+git commit -m "Add preprocessing notes"
+git switch main
+git switch -c feature/model-training
+3. Make and commit a change in branch 2
+cat > model_notes.txt <<'EOF'
+Model training:
+- Use Random Forest.
+- Set random_state for reproducibility.
+- Evaluate on held-out test data.
+EOF
+git add model_notes.txt
+git commit -m "Add model training notes"
+git switch main
+git merge feature/data-preprocessing
+git merge feature/model-training
+Both branches are merged into main. This simple merge may not create a conflict because the branches edited different
+files.
+4. Demonstrate a merge conflict (intentional exercise)
+git switch main
+echo "Project status: main version" > shared.txt
+git add shared.txt
+git commit -m "Add shared project status"
+git switch -c feature/status-a
+echo "Project status: branch A version" > shared.txt
+git add shared.txt
+git commit -m "Change status in branch A"
+git switch main
+git switch -c feature/status-b
+echo "Project status: branch B version" > shared.txt
+git add shared.txt
+git commit -m "Change status in branch B"
+git switch feature/status-a
+git merge feature/status-b
+Git should report a conflict in shared.txt because both branches changed the same line.
+5. Resolve the conflict
+nano shared.txt
+Inside the file, remove conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) and keep the final text you want, for
+example:
+Project status: final merged version
+git add shared.txt
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 5
+git commit -m "Resolve conflict in shared.txt"
+git switch main
+git merge feature/status-a
+git log --oneline --graph --all
+Verify: `git status` should report a clean working tree. The graph should show the branches and merge history.
+NOTE: If `git pull` says there is no tracking information, use `git pull origin main`. If the repository has no remote yet, skip the
+pull.
+Assignment 3 — Fork an open-source AI project and submit
+a pull request
+Aim: Contribute a small improvement to a project you do not own.
+1. Choose a suitable public repository
+• Open GitHub and search for a beginner-friendly Python or AI/ML repository.
+• Read its README, contribution guide, license, and open issues.
+• Choose a small documentation, test, or bug-fix contribution. Avoid changing code you cannot explain.
+• For this practical, a documentation-only correction is acceptable if the project allows it.
+2. Fork and clone
+Click Fork on the original repository page. Then clone YOUR fork (not the original repository):
+git clone git@github.com:YOUR_GITHUB_USERNAME/REPOSITORY.git
+cd REPOSITORY
+git remote -v
+git remote add upstream git@github.com:ORIGINAL_OWNER/REPOSITORY.git
+git fetch upstream
+git switch -c feature/improve-readme
+3. Make a small contribution and push
+Edit the relevant file, for example README.md, using nano. Make a meaningful correction and save.
+git status
+git diff
+git add README.md
+git commit -m "Improve project documentation"
+git push -u origin feature/improve-readme
+4. Open a pull request
+• Open your fork on GitHub. GitHub should show a prompt to compare and create a pull request.
+• Set base repository/branch to the original project's main branch.
+• Set head repository/branch to your fork's feature/improve-readme branch.
+• Describe what changed, why it helps, and how you tested it. Click Create pull request.
+5. Respond to review or conflict
+If the maintainer requests changes, edit the file, then:
+git add .
+git commit -m "Address pull request feedback"
+git push
+The pull request updates automatically. If GitHub reports a branch conflict, update your branch from upstream:
+git fetch upstream
+git switch feature/improve-readme
+git merge upstream/main
+# Edit conflicted files; remove conflict markers.
+git add .
+git commit -m "Resolve upstream merge conflict"
+git push
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 6
+NOTE: Replace `main` with the original repository's default branch if it uses `master` or another name. Do not force-push
+unless the maintainer specifically asks.
+Verify: The pull request page shows your branch, commit, description, and status. A PR is a request for the project
+owner to review and merge your changes; it does not mean it is already accepted.
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 7
+Assignment 4 — Research: DevOps and CI/CD for Machine
+Learning
+Aim: Explain how DevOps practices improve ML development and deployment.
+Write these points in your practical record
+• DevOps: A set of practices that brings development and operations together through automation, collaboration,
+testing, deployment, and monitoring.
+• CI (Continuous Integration): Automatically build and test code changes whenever developers push or merge code.
+• Continuous Delivery: Keep tested software ready to release; a person may approve production deployment.
+• Continuous Deployment: Automatically release every change that passes the pipeline to production.
+• Version control: Git tracks source code, configuration, and changes. Large datasets and model files may need
+dedicated data/model versioning.
+• Automated testing: Unit tests, API tests, data validation, and model checks catch defects early.
+• Containerization: Docker packages the app and dependencies to reduce 'works on my machine' problems.
+• Model monitoring: Track API availability, latency, errors, resource use, prediction quality, and data/model drift.
+• Reproducibility: Record dependencies, code revision, dataset version, model parameters, and model artifact.
+• Rollback: Keep a previous known-good image/model so a failed deployment can be reversed.
+Example ML CI/CD flow
+Developer pushes code
+|
+v
+GitHub
+|
+v
+Jenkins detects change
+|
+v
+Install dependencies + run tests
+|
+v
+Build Docker image
+|
+v
+Deploy to test environment
+|
+v
+Health checks + approval
+|
+v
+Deploy / promote to production
+|
+v
+Monitor API, model, data and resources
+ML-specific issues to mention
+• Passing software tests does not guarantee model quality; add checks for accuracy or other task-specific metrics.
+• Training data can change over time, causing data drift or concept drift.
+• A model may be correct but too slow or memory-heavy for production.
+• Protect secrets, personal data, model artifacts, and deployment credentials.
+• Separate model training from model serving where appropriate.
+Conclusion: CI/CD makes ML releases repeatable and faster, while testing, model/data tracking, monitoring, and
+rollback improve reliability.
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 8
+Assignment 5 — Jenkins: trigger builds when GitHub code
+is pushed
+Aim: Configure Jenkins to fetch the GitHub project and run a build/test job on each push.
+1. Check Jenkins service
+sudo systemctl status jenkins
+jenkins --version
+If Jenkins is already running, continue. If it is installed but stopped, start it:
+sudo systemctl start jenkins
+sudo systemctl enable jenkins
+Open http://localhost:8080 in the browser. Complete the initial unlock/setup wizard if this is the first run. Install the
+suggested plugins and create an admin user.
+2. Ensure the project has a simple test
+mkdir -p tests
+cat > tests/test_basic.py <<'PY'
+def test_project_math():
+assert 2 + 2 == 4
+PY
+Commit and push this test file to GitHub before configuring Jenkins.
+git add tests/test_basic.py
+git commit -m "Add basic CI test"
+git push
+3. Create a Jenkins Pipeline job
+• In Jenkins, select New Item.
+• Enter `iris-ml-pipeline`, select Pipeline, then OK.
+• Under Pipeline, choose 'Pipeline script from SCM'.
+• SCM: Git. Repository URL: your GitHub repository URL.
+• Credentials: add credentials if using a private repository or SSH.
+• Branch: */main. Script Path: Jenkinsfile. Save.
+4. Add a Jenkinsfile to the repository
+cat > Jenkinsfile <<'EOF'
+pipeline {
+agent any
+stages {
+stage('Checkout') {
+steps { checkout scm }
+}
+stage('Install and Test') {
+steps {
+sh 'python3 -m venv .venv'
+sh '. .venv/bin/activate && pip install -r requirements.txt'
+sh '. .venv/bin/activate && pytest -q'
+}
+}
+}
+}
+EOF
+git add Jenkinsfile
+git commit -m "Add Jenkins pipeline"
+git push
+Jenkins must have Python 3 and permission to create a virtual environment on its agent. The Jenkins service account
+may use a different PATH and home directory than your terminal.
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 9
+5. Configure GitHub webhook
+• For a Jenkins instance reachable from GitHub, open the GitHub repository → Settings → Webhooks → Add webhook.
+• Payload URL: `https://YOUR_PUBLIC_JENKINS_URL/github-webhook/` (must be reachable from GitHub).
+• Content type: application/json. Select push events. Add webhook.
+• In Jenkins job configuration, enable GitHub hook trigger for GITScm polling, if that option is available.
+NOTE: A Jenkins server at localhost:8080 is not reachable by GitHub on the public internet. For a classroom/local-only setup,
+use 'Poll SCM' in the Jenkins job as an alternative, or use an institution-approved secure webhook tunnel. Never expose
+Jenkins publicly without authentication, HTTPS, and appropriate firewall/security settings.
+6. Test the trigger
+echo "CI trigger test" >> README.md
+git add README.md
+git commit -m "Test Jenkins trigger"
+git push
+Open Jenkins → your job → Build History/Console Output. Confirm the job starts and the test stage passes. If using Poll
+SCM, configure a schedule such as `H/2 * * * *` to check about every two minutes.
+Verify: A successful Jenkins build and console output showing pytest passed.
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 10
+Assignment 6 — Build and test a Docker container for the
+ML model
+Aim: Package the Iris prediction API and its Python dependencies into a reproducible container.
+1. Create the API
+cat > app.py <<'PY'
+from flask import Flask, request, jsonify
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+import joblib
+from pathlib import Path
+app = Flask(__name__)
+MODEL_PATH = Path("models/iris_model.joblib")
+if MODEL_PATH.exists():
+model = joblib.load(MODEL_PATH)
+else:
+iris = load_iris()
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(iris.data, iris.target)
+@app.get("/health")
+def health():
+return {"status": "ok"}
+@app.post("/predict")
+def predict():
+data = request.get_json()
+features = data.get("features")
+if not isinstance(features, list) or len(features) != 4:
+return jsonify({"error": "features must contain 4 numbers"}), 400
+prediction = int(model.predict([features])[0])
+names = load_iris().target_names
+return jsonify({"class_id": prediction, "species": names[prediction]})
+if __name__ == "__main__":
+app.run(host="0.0.0.0", port=5000)
+PY
+2. Create Dockerfile
+cat > Dockerfile <<'EOF'
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app.py .
+COPY train.py .
+EXPOSE 5000
+CMD ["python", "app.py"]
+EOF
+3. Build and run
+docker build -t iris-ml:1.0 .
+docker images
+docker run -d --name iris-api -p 5000:5000 iris-ml:1.0
+docker ps
+4. Test the container
+curl http://localhost:5000/health
+curl -X POST http://localhost:5000/predict \
+-H "Content-Type: application/json" \
+-d '{"features":[5.1,3.5,1.4,0.2]}'
+Expected: health response `{"status":"ok"}` and a JSON prediction with class_id and species.
+5. Inspect and clean up
+docker logs iris-api
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 11
+docker stop iris-api
+docker rm iris-api
+Verify: `docker build` succeeds; container appears in `docker ps`; both curl requests return valid responses.
+NOTE: The API trains a small fallback model at startup if no saved model is present. For a real production workflow, train and
+validate the model separately, package/version the model artifact, and load that artifact in the serving image.
+Assignment 7 — Docker Compose: frontend/API/database
+services
+Aim: Start and manage multiple related containers with one Compose file.
+For a lightweight classroom demonstration, use the Iris API plus a PostgreSQL database and a simple Nginx frontend.
+The API example does not yet read/write PostgreSQL; Compose demonstrates service networking and lifecycle
+management.
+1. Create a simple frontend page
+mkdir -p frontend
+cat > frontend/index.html <<'EOF'
+<!doctype html>
+<html>
+<head><title>Iris ML Demo</title></head>
+<body>
+<h1>Iris Flower Classification</h1>
+<p>ML API health: <a href="http://localhost:5000/health">check API</a></p>
+<p>POST four flower measurements to /predict using the API.</p>
+</body>
+</html>
+EOF
+2. Create docker-compose.yml
+cat > docker-compose.yml <<'EOF'
+services:
+model-api:
+build: .
+ports:
+- "5000:5000"
+depends_on:
+- database
+frontend:
+image: nginx:alpine
+ports:
+- "8080:80"
+volumes:
+- ./frontend:/usr/share/nginx/html:ro
+depends_on:
+- model-api
+database:
+image: postgres:16-alpine
+environment:
+POSTGRES_DB: irisdb
+POSTGRES_USER: irisuser
+POSTGRES_PASSWORD: classroom-only-change-me
+volumes:
+- pgdata:/var/lib/postgresql/data
+volumes:
+pgdata:
+EOF
+3. Start all services
+docker compose up -d --build
+docker compose ps
+docker compose logs
+4. Test and manage
+# Frontend
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 12
+curl http://localhost:8080
+# ML API
+curl http://localhost:5000/health
+# Stop containers but keep named volume data
+docker compose down
+# Stop and remove containers AND database volume (destructive)
+# docker compose down -v
+Verify: `docker compose ps` shows frontend, model-api, and database running. Open http://localhost:8080.
+NOTE: For a real application, connect the API to PostgreSQL using a database driver and environment variables. Do not use
+the classroom password in a real deployment. `depends_on` controls startup order, not application-level database readiness.
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 13
+Assignment 8 — Deploy the Dockerized app to Minikube
+Kubernetes
+Aim: Run the ML API as a Kubernetes Deployment and expose it with a Service.
+1. Start Minikube
+minikube status
+minikube start
+kubectl get nodes
+If Minikube is already running, do not start another cluster. Confirm that kubectl is using the Minikube context:
+kubectl config current-context
+2. Build the image inside Minikube
+eval $(minikube docker-env)
+docker build -t iris-ml:1.0 .
+docker images | grep iris-ml
+This makes the image available to Minikube's Docker environment so Kubernetes can use it without pulling from a
+public registry.
+3. Create Kubernetes Deployment
+cat > k8s/deployment.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: iris-api
+spec:
+replicas: 2
+selector:
+matchLabels:
+app: iris-api
+template:
+metadata:
+labels:
+app: iris-api
+spec:
+containers:
+- name: iris-api
+image: iris-ml:1.0
+imagePullPolicy: IfNotPresent
+ports:
+- containerPort: 5000
+readinessProbe:
+httpGet:
+path: /health
+port: 5000
+initialDelaySeconds: 5
+periodSeconds: 5
+livenessProbe:
+httpGet:
+path: /health
+port: 5000
+initialDelaySeconds: 10
+periodSeconds: 10
+resources:
+requests:
+cpu: 100m
+memory: 128Mi
+limits:
+cpu: 500m
+memory: 512Mi
+EOF
+kubectl apply -f k8s/deployment.yaml
+kubectl get deployments
+kubectl get pods
+4. Expose the Deployment
+cat > k8s/service.yaml <<'EOF'
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 14
+apiVersion: v1
+kind: Service
+metadata:
+name: iris-service
+spec:
+type: NodePort
+selector:
+app: iris-api
+ports:
+- port: 5000
+targetPort: 5000
+nodePort: 30080
+EOF
+kubectl apply -f k8s/service.yaml
+kubectl get services
+minikube service iris-service --url
+Open the URL printed by Minikube, adding `/health` to test the API. If using WSL, the printed URL may require
+Minikube's tunnel or port-forward depending on the driver/network.
+5. Useful inspection commands
+kubectl get all
+kubectl describe deployment iris-api
+kubectl logs deployment/iris-api
+kubectl get pods -o wide
+Verify: Two pods should be Running/Ready and the service should have endpoints.
+Assignment 9 — Autoscaling and monitoring
+Aim: Scale the ML API pods based on CPU and check application health.
+1. Enable metrics server in Minikube
+minikube addons enable metrics-server
+kubectl top nodes
+kubectl top pods
+If metrics are not immediately available, wait briefly and retry. HPA needs working resource metrics.
+2. Create Horizontal Pod Autoscaler
+cat > k8s/hpa.yaml <<'EOF'
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+name: iris-api-hpa
+spec:
+scaleTargetRef:
+apiVersion: apps/v1
+kind: Deployment
+name: iris-api
+minReplicas: 2
+maxReplicas: 5
+metrics:
+- type: Resource
+resource:
+name: cpu
+target:
+type: Utilization
+averageUtilization: 50
+EOF
+kubectl apply -f k8s/hpa.yaml
+kubectl get hpa
+3. Generate test load
+Run this in a second terminal while the port-forward command remains active:
+kubectl port-forward service/iris-service 5000:5000
+In another terminal:
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 15
+for i in $(seq 1 300); do
+curl -s http://localhost:5000/health >/dev/null &
+done
+wait
+This small request loop may not create enough CPU load to trigger scaling because `/health` is lightweight. The
+autoscaler scales only when metrics exceed the configured target; no scale-up is guaranteed by this test.
+4. Monitor scaling and health
+kubectl get hpa -w
+kubectl get pods -w
+kubectl top pods
+kubectl describe hpa iris-api-hpa
+Stop watch commands with Ctrl+C. HPA decisions can take time; ensure metrics-server is reporting CPU values.
+5. Scale manually and inspect rollout
+kubectl scale deployment iris-api --replicas=3
+kubectl rollout status deployment/iris-api
+kubectl get pods
+Manual scaling is a separate demonstration; HPA may later adjust the replica count based on its metrics.
+6. Health checks
+• Readiness probe: tells Kubernetes whether a pod is ready to receive traffic.
+• Liveness probe: tells Kubernetes whether a container should be restarted.
+• CPU/memory requests: help Kubernetes schedule pods and define the HPA CPU utilization baseline.
+• Limits: cap container resource use.
+Verify: `kubectl get hpa`, `kubectl top pods`, and `kubectl get pods` show metrics and pod health. Capture screenshots.
+Assignment 10 — End-to-end CI/CD with Jenkins, Docker,
+and Kubernetes
+Aim: Automate checkout, tests, Docker build, and Kubernetes deployment after code changes.
+NOTE: This is a classroom pipeline template. Jenkins must run on an agent that has Docker access, kubectl, and access to
+the same Kubernetes cluster. Minikube's Docker image cache is local to its environment; for a robust pipeline, push the
+image to a registry and configure Kubernetes to pull it.
+1. Choose an image registry
+For a local Minikube demonstration, build the image inside Minikube and deploy it with kubectl. For Jenkins running
+outside Minikube, the recommended approach is a registry such as Docker Hub or your institution's private registry.
+2. Jenkins pipeline for registry-based deployment
+cat > Jenkinsfile <<'EOF'
+pipeline {
+agent any
+environment {
+IMAGE = "YOUR_DOCKERHUB_USERNAME/iris-ml"
+TAG = "${BUILD_NUMBER}"
+}
+stages {
+stage('Checkout') {
+steps { checkout scm }
+}
+stage('Test') {
+steps {
+sh 'python3 -m venv .venv'
+sh '. .venv/bin/activate && pip install -r requirements.txt'
+sh '. .venv/bin/activate && pytest -q'
+}
+}
+stage('Build Image') {
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 16
+steps {
+sh 'docker build -t $IMAGE:$TAG .'
+}
+}
+stage('Push Image') {
+steps {
+withCredentials([usernamePassword(
+credentialsId: 'dockerhub-creds',
+usernameVariable: 'DOCKER_USER',
+passwordVariable: 'DOCKER_PASS'
+)]) {
+sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+sh 'docker push $IMAGE:$TAG'
+sh 'docker logout'
+}
+}
+}
+stage('Deploy to Kubernetes') {
+steps {
+sh 'kubectl set image deployment/iris-api iris-api=$IMAGE:$TAG'
+sh 'kubectl rollout status deployment/iris-api'
+}
+}
+}
+}
+EOF
+3. Configure credentials and cluster access
+• In Jenkins → Manage Jenkins → Credentials, add Docker Hub username/password with ID `dockerhub-creds`.
+• Configure kubectl credentials/context for the Jenkins agent. The agent must be able to reach the intended Kubernetes
+cluster.
+• Ensure the Kubernetes deployment is configured to use the registry image and that the cluster can pull it.
+• Do not put passwords, tokens, kubeconfig contents, or private keys directly in Jenkinsfile or Git.
+4. Commit and run
+git add Jenkinsfile
+git commit -m "Add end-to-end CI CD pipeline"
+git push
+Configure the Jenkins job to use Pipeline script from SCM and select the Jenkinsfile. Trigger a build manually first. After
+it succeeds, configure a GitHub webhook or polling trigger as described in Assignment 5.
+5. Verify deployment and rollback
+kubectl get deployment iris-api
+kubectl get pods
+kubectl rollout history deployment/iris-api
+kubectl rollout status deployment/iris-api
+# Roll back to the previous deployment revision if required:
+kubectl rollout undo deployment/iris-api
+Successful result: A GitHub push triggers Jenkins; Jenkins checks out code, runs tests, builds and pushes a Docker
+image, updates the Kubernetes Deployment, and waits for rollout success.
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 17
+Final checklist and viva preparation
+Practical completion checklist
+1 Git repository created, committed, pushed to GitHub ■
+2 Feature branches merged; conflict resolved ■
+3 Fork created; pull request submitted/updated ■
+4 DevOps and CI/CD in ML explained ■
+5 Jenkins job runs after code changes ■
+6 Docker image built and API tested locally ■
+7 Compose runs frontend, API, and database ■
+8 Minikube Deployment and Service work ■
+9 HPA and health/resource metrics inspected ■
+10 Jenkins pipeline deploys to Kubernetes ■
+Common Git commands
+git status
+git add .
+git commit -m "Describe the change"
+git pull origin main
+git push
+git branch
+git switch BRANCH_NAME
+git switch -c NEW_BRANCH
+git merge BRANCH_NAME
+git log --oneline --graph --all
+git diff
+Common Docker commands
+docker ps
+docker images
+docker logs CONTAINER
+docker stop CONTAINER
+docker rm CONTAINER
+docker compose up -d --build
+docker compose ps
+docker compose down
+Common Kubernetes commands
+kubectl get nodes
+kubectl get pods
+kubectl get deployments
+kubectl get services
+kubectl get hpa
+kubectl describe pod POD_NAME
+kubectl logs POD_NAME
+kubectl apply -f k8s/
+kubectl delete -f k8s/
+kubectl rollout status deployment/iris-api
+kubectl rollout undo deployment/iris-api
+Viva questions — short answers
+• What is Git? A distributed version-control system that tracks source-code changes.
+• What is GitHub? A hosted platform for Git repositories and collaboration.
+
+Ubuntu DevOps & MLOps Practical Lab Manual Page 18
+• What is a branch? An independent line of development.
+• What is a merge conflict? A situation where Git cannot automatically combine competing edits.
+• What is a pull request? A proposal to merge changes from one branch/fork into another repository or branch.
+• What is CI? Automatically integrating and testing code changes.
+• What is Jenkins? An automation server used to run build, test, and deployment pipelines.
+• What is Docker? A platform for packaging and running applications in containers.
+• What is Docker Compose? A tool to define and run multi-container applications.
+• What is Kubernetes? A container orchestration platform.
+• What is a Pod? The smallest deployable Kubernetes unit; it contains one or more containers.
+• What is a Deployment? A Kubernetes resource that manages replica Pods and rolling updates.
+• What is a Service? A stable network endpoint for accessing a set of Pods.
+• What is HPA? Horizontal Pod Autoscaler; it adjusts replica count using metrics such as CPU utilization.
+• Why monitor ML apps? To detect service failures, latency, resource pressure, and changes in prediction/data quality.
+Troubleshooting quick notes
+• `permission denied` with Docker: check whether your user is allowed to access the Docker daemon. Use the
+institution's approved setup; logging out/in may be required after group changes.
+• `ImagePullBackOff`: check image name/tag, registry login, and whether the cluster can pull the image.
+• `CrashLoopBackOff`: inspect `kubectl logs POD_NAME` and `kubectl describe pod POD_NAME`.
+• HPA shows ``: check metrics-server and `kubectl top pods`.
+• Git push rejected: run `git pull --rebase origin main`, resolve any conflicts, then push.
+• Jenkins cannot find a command: remember Jenkins runs as a service/agent user with a different PATH and
+permissions.
+Cleanup (only after your practical/demo)
+# Stop Compose stack
+docker compose down
+# Remove Kubernetes resources created for this lab
+kubectl delete -f k8s/hpa.yaml --ignore-not-found
+kubectl delete -f k8s/service.yaml --ignore-not-found
+kubectl delete -f k8s/deployment.yaml --ignore-not-found
+# Stop Minikube (does not delete your project files)
+minikube stop
+NOTE: Do not run `docker system prune -a`, `docker compose down -v`, or delete the Minikube cluster unless you
+understand that these actions can remove images, volumes, or cluster data.
+End of lab manual. Keep your GitHub repository, Jenkins build history, Docker images, Kubernetes resource output, and screenshots as
+evidence of each assignment.
